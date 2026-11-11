@@ -298,6 +298,12 @@ TEST_CASE("Integration with STL containers") {
     TestAllocatorWithSTL(tbb::memory_pool_allocator<void>(fpool) );
 }
 
+//! Testing that freeing a block next to a container's spare capacity is not reported by ASan
+//! \brief \ref error_guessing
+TEST_CASE("Free next to container spare capacity") {
+    TestFreeAfterContainerSpareCapacity<tbb::scalable_allocator<void>>();
+}
+
 #if __TBB_CPP17_MEMORY_RESOURCE_PRESENT
 //! Testing memory resources compatibility with STL containers through std::pmr::polymorphic_allocator
 //! \brief \ref interface

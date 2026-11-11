@@ -1,5 +1,6 @@
 /*
     Copyright (c) 2005-2021 Intel Corporation
+    Copyright (c) 2026 UXL Foundation Contributors
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -132,5 +133,41 @@ void TestAllocatorWithSTL(const Allocator &a = Allocator()) {
     TestMap<std::multimap<int, int, std::less<int>, Aii> >(a);
     TestMap<std::multimap<const int, int, std::less<int>, Acii> >(a);
 #endif /* _MSC_VER */
+}
+
+//! Frees blocks that directly follow the spare capacity of vectors using the same allocator.
+//! tbbmalloc inspects memory before a freed block, which libc++ ASan container annotations poison.
+template<typename Allocator>
+void TestFreeAfterContainerSpareCapacity(const Allocator &a = Allocator()) {
+    using Ap = typename std::allocator_traits<Allocator>::template rebind_alloc<void*>;
+    using Ac = typename std::allocator_traits<Allocator>::template rebind_alloc<char>;
+    constexpr std::size_t count = 512;
+    constexpr std::size_t capacity = 16;
+    constexpr std::size_t block_size = capacity * sizeof(void*);
+
+    Ac block_allocator(a);
+    std::vector<std::vector<void*, Ap>> containers;
+    std::vector<char*> blocks;
+    containers.reserve(count);
+    blocks.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        // Interleave allocations so that some blocks directly follow a container buffer.
+        blocks.push_back(block_allocator.allocate(block_size));
+        containers.emplace_back(Ap(a));
+        containers.back().reserve(capacity);
+        containers.back().push_back(nullptr);
+    }
+    for (auto &c : containers) {
+        char* spare_end = reinterpret_cast<char*>(c.data() + c.capacity());
+        for (auto &b : blocks) {
+            if (b == spare_end) {
+                block_allocator.deallocate(b, block_size);
+                b = nullptr;
+            }
+        }
+    }
+    for (char* b : blocks) {
+        if (b) block_allocator.deallocate(b, block_size);
+    }
 }
 #endif // __TBB_test_common_allocator_stl_test_H_

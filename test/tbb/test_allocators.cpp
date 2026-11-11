@@ -111,6 +111,13 @@ TEST_CASE("Test allocators with STL containers") {
     TestAllocatorWithSTL<tbb::tbb_allocator<void>>();
 }
 
+//! Testing that freeing a block next to a container's spare capacity is not reported by ASan
+//! \brief \ref error_guessing
+TEST_CASE("Free next to container spare capacity") {
+    TestFreeAfterContainerSpareCapacity<tbb::cache_aligned_allocator<void>>();
+    TestFreeAfterContainerSpareCapacity<tbb::tbb_allocator<void>>();
+}
+
 #if __TBB_CPP17_MEMORY_RESOURCE_PRESENT
 //! Testing memory resources compatibility with STL containers through the
 //! std::pmr::polymorphic_allocator

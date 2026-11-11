@@ -339,6 +339,17 @@ using detail::d1::scalable_memory_resource;
 
 } // namespace tbb
 
+#if defined(_LIBCPP_VERSION) && defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#include <vector> // Declares libc++'s container-annotation customization point.
+#endif
+#endif
+#ifdef _LIBCPP_HAS_ASAN_CONTAINER_ANNOTATIONS_FOR_ALL_ALLOCATORS
+// tbbmalloc reads memory before freed blocks, so libc++ must not poison spare capacity.
+template <typename T>
+struct std::__asan_annotate_container_with_allocator<tbb::detail::d1::scalable_allocator<T>> : std::false_type {};
+#endif
+
 #endif /* __cplusplus */
 
 #endif /* __TBB_scalable_allocator_H */
