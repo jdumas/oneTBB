@@ -437,6 +437,38 @@ jobs:
           make VERBOSE=1 -j${MACOS_BUILD_CONCURRENCY}
           ctest --timeout ${TEST_TIMEOUT} --output-on-failure
 
+  macos-sanitizer-testing:
+    name: ${{ matrix.os }}_${{ matrix.cxx_compiler }}_cxx${{ matrix.std }}_${{ matrix.build_type }}_sanitize=${{ matrix.sanitizer }}
+    runs-on: ['${{ matrix.os }}']
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # AppleClang uses libc++, whose ASan container annotations cover custom allocators.
+          - os: macos-15
+            c_compiler: clang
+            cxx_compiler: clang++
+            std: 17
+            build_type: relwithdebinfo
+            sanitizer: address
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run testing
+        shell: bash
+        run: |
+          set -e -x -o pipefail
+          mkdir build && cd build
+          cmake -DCMAKE_CXX_STANDARD=${{ matrix.std }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DTBB_SANITIZE=${{ matrix.sanitizer }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx_compiler }} -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} ..
+          make VERBOSE=1 -j${MACOS_BUILD_CONCURRENCY}
+          ctest --timeout ${TEST_TIMEOUT} --output-on-failure
+
   windows-testing:
     name: ${{ matrix.job_name }}
     runs-on: ['${{ matrix.os }}']
